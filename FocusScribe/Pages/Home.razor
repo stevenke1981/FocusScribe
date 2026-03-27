@@ -1,0 +1,118 @@
+@page "/"
+@implements IDisposable
+@inject FocusScribeState State
+@inject TranscriptionCoordinator Coordinator
+@inject UiLocalizer L
+
+<div class="hero">
+    <div>
+        <div class="eyebrow">@L["HomeEyebrow"]</div>
+        <h1>FocusScribe</h1>
+        <p class="hero-copy">@L.Format("HomeHeroCopy", State.Settings.Hotkey)</p>
+    </div>
+    <div class="hero-actions">
+        <button class="primary-action" @onclick="ToggleRecordingAsync" disabled="@State.IsBusy">
+            @(State.IsRecording ? L["StopAndTranscribe"] : L["StartRecording"])
+        </button>
+        <button class="secondary-action" @onclick="HideWindow">@L["HideToTray"]</button>
+    </div>
+</div>
+
+<div class="metrics-grid">
+    <section class="metric-card">
+        <div class="metric-label">@L["MetricStatus"]</div>
+        <div class="metric-value">@State.StatusHeadline</div>
+        <p>@State.StatusDetail</p>
+    </section>
+
+    <section class="metric-card">
+        <div class="metric-label">@L["MetricServer"]</div>
+        <div class="metric-value @(State.Health.IsHealthy ? "ok" : "warn")">
+            @(State.Health.IsHealthy ? L["ServerHealthy"] : L["ServerAttention"])
+        </div>
+        <p>@(string.IsNullOrWhiteSpace(State.Health.ModelId) ? State.Health.ErrorMessage : $"{State.Health.ModelId} on {State.Health.Device}")</p>
+    </section>
+
+    <section class="metric-card">
+        <div class="metric-label">@L["MetricTargetWindow"]</div>
+        <div class="metric-value">@DisplayTargetWindow()</div>
+        <p>@L["TargetWindowHelp"]</p>
+    </section>
+
+    <section class="metric-card">
+        <div class="metric-label">@L["MetricHistory"]</div>
+        <div class="metric-value">@State.History.Count</div>
+        <p>@L["HistoryHelp"]</p>
+    </section>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(State.LastError))
+{
+    <section class="message-banner error-banner">
+        <strong>@L["BannerError"]</strong>
+        <span>@State.LastError</span>
+    </section>
+}
+
+@if (!string.IsNullOrWhiteSpace(State.LastInfo))
+{
+    <section class="message-banner info-banner">
+        <strong>@L["BannerInfo"]</strong>
+        <span>@State.LastInfo</span>
+    </section>
+}
+
+<section class="transcript-panel">
+    <div class="panel-header">
+        <div>
+            <div class="eyebrow">@L["LatestTranscriptEyebrow"]</div>
+            <h2>@L["LatestTranscriptTitle"]</h2>
+        </div>
+        <button class="secondary-action" @onclick="PasteLatestIntoCurrentWindowAsync" disabled="@string.IsNullOrWhiteSpace(State.LatestTranscript)">
+            @L["PasteIntoCurrentWindow"]
+        </button>
+    </div>
+
+    <div class="transcript-body">
+        @if (string.IsNullOrWhiteSpace(State.LatestTranscript))
+        {
+            <p class="placeholder-copy">@L["TranscriptPlaceholder"]</p>
+        }
+        else
+        {
+            <pre>@State.LatestTranscript</pre>
+        }
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.Changed += HandleStateChanged;
+        L.Changed += HandleStateChanged;
+    }
+
+    public void Dispose()
+    {
+        State.Changed -= HandleStateChanged;
+        L.Changed -= HandleStateChanged;
+    }
+
+    private Task ToggleRecordingAsync() => Coordinator.ToggleRecordingAsync();
+
+    private void HideWindow() => Coordinator.HideWindow();
+
+    private Task PasteLatestIntoCurrentWindowAsync() => Coordinator.PasteTextIntoCurrentWindowAsync(State.LatestTranscript);
+
+    private string DisplayTargetWindow()
+    {
+        return string.IsNullOrWhiteSpace(State.ActiveTargetWindowTitle)
+            ? L["WaitingForCapture"]
+            : State.ActiveTargetWindowTitle;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}

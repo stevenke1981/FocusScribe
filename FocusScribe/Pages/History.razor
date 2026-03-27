@@ -1,0 +1,63 @@
+@page "/history"
+@implements IDisposable
+@inject FocusScribeState State
+@inject TranscriptionCoordinator Coordinator
+@inject UiLocalizer L
+
+<div class="page-header">
+    <div>
+        <div class="eyebrow">@L["HistoryEyebrow"]</div>
+        <h1>@L["HistoryTitle"]</h1>
+    </div>
+</div>
+
+@if (State.History.Count == 0)
+{
+    <section class="empty-state">
+        <h2>@L["NoTranscriptsTitle"]</h2>
+        <p>@L["NoTranscriptsCopy"]</p>
+    </section>
+}
+else
+{
+    <div class="history-list">
+        @foreach (var record in State.History)
+        {
+            <article class="history-card">
+                <div class="history-meta">
+                    <span>@record.CreatedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                    <span>@(string.IsNullOrWhiteSpace(record.TargetWindowTitle) ? L["UnknownTarget"] : record.TargetWindowTitle)</span>
+                    <span>@(string.IsNullOrWhiteSpace(record.Language) ? "auto" : record.Language)</span>
+                </div>
+                <p class="history-text">@record.TranscriptText</p>
+                <div class="history-actions">
+                    <button class="secondary-action" @onclick="@(() => PasteAsync(record))">
+                        @L["PasteIntoCurrentWindow"]
+                    </button>
+                    <span class="history-model">@record.Model</span>
+                </div>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.Changed += HandleStateChanged;
+        L.Changed += HandleStateChanged;
+    }
+
+    public void Dispose()
+    {
+        State.Changed -= HandleStateChanged;
+        L.Changed -= HandleStateChanged;
+    }
+
+    private Task PasteAsync(TranscriptionRecord record) => Coordinator.PasteRecordIntoCurrentWindowAsync(record);
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}

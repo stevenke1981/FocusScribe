@@ -1,0 +1,9 @@
+.vs/
+*.user
+*.suo
+*.tmp
+*.log
+
+FocusScribe/bin/
+FocusScribe/obj/
+FocusScribe/FocusScribe.code-workspace

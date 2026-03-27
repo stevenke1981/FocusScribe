@@ -1,0 +1,48 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject FocusScribeState State
+@inject UiLocalizer L
+
+<div class="shell">
+    <aside class="shell-nav">
+        <NavMenu />
+    </aside>
+
+    <main class="shell-main">
+        <header class="shell-header">
+            <div>
+                <div class="eyebrow">@L["AppSubtitle"]</div>
+                <h1>FocusScribe</h1>
+            </div>
+            <div class="shell-header-status">
+                <span class="status-pill @(State.Health.IsHealthy ? "status-ok" : "status-warn")">
+                    @(State.Health.IsHealthy ? L["ServerHealthy"] : L["ServerAttention"])
+                </span>
+                <span class="status-pill status-neutral">@State.Settings.Hotkey</span>
+            </div>
+        </header>
+
+        <article class="shell-content">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.Changed += HandleChanged;
+        L.Changed += HandleChanged;
+    }
+
+    public void Dispose()
+    {
+        State.Changed -= HandleChanged;
+        L.Changed -= HandleChanged;
+    }
+
+    private void HandleChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}

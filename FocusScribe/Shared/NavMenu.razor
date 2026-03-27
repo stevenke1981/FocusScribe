@@ -1,0 +1,33 @@
+@inject UiLocalizer L
+@implements IDisposable
+
+<div class="nav-brand">
+    <div class="nav-mark">FS</div>
+    <div>
+        <div class="nav-title">FocusScribe</div>
+        <div class="nav-subtitle">WinUI + Blazor</div>
+    </div>
+</div>
+
+<nav class="nav-links">
+    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">@L["NavHome"]</NavLink>
+    <NavLink class="nav-link" href="history">@L["NavHistory"]</NavLink>
+    <NavLink class="nav-link" href="settings">@L["NavSettings"]</NavLink>
+</nav>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.Changed += HandleChanged;
+    }
+
+    public void Dispose()
+    {
+        L.Changed -= HandleChanged;
+    }
+
+    private void HandleChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}

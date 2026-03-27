@@ -1,0 +1,178 @@
+@page "/settings"
+@implements IDisposable
+@inject FocusScribeState State
+@inject TranscriptionCoordinator Coordinator
+@inject UiLocalizer L
+
+<div class="page-header">
+    <div>
+        <div class="eyebrow">@L["SettingsEyebrow"]</div>
+        <h1>@L["SettingsTitle"]</h1>
+    </div>
+    <div class="page-actions">
+        <button class="secondary-action" @onclick="RefreshAsync">@L["RefreshService"]</button>
+        <button class="primary-action" @onclick="SaveAsync">@L["SaveSettings"]</button>
+    </div>
+</div>
+
+<div class="settings-grid">
+    <section class="settings-card">
+        <h2>@L["SettingsServerTitle"]</h2>
+        <label>
+            <span>@L["BaseUrl"]</span>
+            <input @bind="workingCopy.BaseUrl" />
+        </label>
+        <label>
+            <span>@L["Model"]</span>
+            <select @bind="workingCopy.SelectedModel">
+                @foreach (var model in State.AvailableModels)
+                {
+                    <option value="@model">@model</option>
+                }
+            </select>
+        </label>
+        <label>
+            <span>@L["LanguageOverride"]</span>
+            <input @bind="workingCopy.Language" placeholder="@L["LanguageOverridePlaceholder"]" />
+        </label>
+        <label class="toggle-row">
+            <input type="checkbox" @bind="workingCopy.Punctuation" />
+            <span>@L["EnablePunctuation"]</span>
+        </label>
+        <label>
+            <span>@L["Prompt"]</span>
+            <textarea @bind="workingCopy.Prompt" rows="4" placeholder="@L["PromptPlaceholder"]"></textarea>
+        </label>
+        <label>
+            <span>@L["UiLanguage"]</span>
+            <select @bind="workingCopy.UiCulture">
+                @foreach (var culture in cultureOptions)
+                {
+                    <option value="@culture.Value">@culture.Label</option>
+                }
+            </select>
+        </label>
+    </section>
+
+    <section class="settings-card">
+        <h2>@L["SettingsHotkeyTitle"]</h2>
+        <div class="toggle-grid">
+            <label class="toggle-row">
+                <input type="checkbox" @bind="workingCopy.Hotkey.Ctrl" />
+                <span>Ctrl</span>
+            </label>
+            <label class="toggle-row">
+                <input type="checkbox" @bind="workingCopy.Hotkey.Alt" />
+                <span>Alt</span>
+            </label>
+            <label class="toggle-row">
+                <input type="checkbox" @bind="workingCopy.Hotkey.Shift" />
+                <span>Shift</span>
+            </label>
+        </div>
+
+        <label>
+            <span>@L["HotkeyKey"]</span>
+            <select @bind="workingCopy.Hotkey.Key">
+                @foreach (var key in hotkeyOptions)
+                {
+                    <option value="@key">@key</option>
+                }
+            </select>
+        </label>
+
+        <div class="hotkey-preview">
+            @L["CurrentShortcut"]: <strong>@workingCopy.Hotkey</strong>
+        </div>
+    </section>
+
+    <section class="settings-card">
+        <h2>@L["SettingsSnapshotTitle"]</h2>
+        <dl class="status-list">
+            <div>
+                <dt>@L["Status"]</dt>
+                <dd>@State.Health.Status</dd>
+            </div>
+            <div>
+                <dt>@L["Model"]</dt>
+                <dd>@(string.IsNullOrWhiteSpace(State.Health.ModelId) ? "-" : State.Health.ModelId)</dd>
+            </div>
+            <div>
+                <dt>@L["Device"]</dt>
+                <dd>@(string.IsNullOrWhiteSpace(State.Health.Device) ? "-" : State.Health.Device)</dd>
+            </div>
+            <div>
+                <dt>@L["DefaultLanguage"]</dt>
+                <dd>@(string.IsNullOrWhiteSpace(State.Health.DefaultLanguage) ? "-" : State.Health.DefaultLanguage)</dd>
+            </div>
+        </dl>
+        @if (!string.IsNullOrWhiteSpace(State.Health.ErrorMessage))
+        {
+            <p class="error-copy">@State.Health.ErrorMessage</p>
+        }
+    </section>
+</div>
+
+@code {
+    private static readonly string[] hotkeyOptions =
+    [
+        "Space",
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"
+    ];
+
+    private readonly (string Value, string Label)[] cultureOptions =
+    [
+        ("zh-TW", "繁體中文"),
+        ("en-US", "English")
+    ];
+
+    private AppSettings workingCopy = new();
+
+    protected override void OnInitialized()
+    {
+        workingCopy = Clone(State.Settings);
+        State.Changed += HandleStateChanged;
+        L.Changed += HandleStateChanged;
+    }
+
+    public void Dispose()
+    {
+        State.Changed -= HandleStateChanged;
+        L.Changed -= HandleStateChanged;
+    }
+
+    private async Task SaveAsync()
+    {
+        await Coordinator.SaveSettingsAsync(workingCopy);
+        workingCopy = Clone(State.Settings);
+    }
+
+    private Task RefreshAsync() => Coordinator.RefreshServiceStatusAsync();
+
+    private static AppSettings Clone(AppSettings source)
+    {
+        return new AppSettings
+        {
+            UiCulture = source.UiCulture,
+            BaseUrl = source.BaseUrl,
+            SelectedModel = source.SelectedModel,
+            Language = source.Language,
+            Punctuation = source.Punctuation,
+            Prompt = source.Prompt,
+            Hotkey = new HotkeySettings
+            {
+                Ctrl = source.Hotkey.Ctrl,
+                Alt = source.Hotkey.Alt,
+                Shift = source.Hotkey.Shift,
+                Key = source.Hotkey.Key
+            }
+        };
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+}
